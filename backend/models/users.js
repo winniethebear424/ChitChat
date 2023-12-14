@@ -1,5 +1,7 @@
 // users.js
-let onlineUsers = [];
+
+
+let onlineUsers = []; 
 //sanitize the username
 function isValidUserName(username) {
     let isValid = true;
