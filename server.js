@@ -9,9 +9,9 @@ app.use(cookieParser());
 app.use(express.static('./dist'));
 app.use(express.json());
 
-const session = require('./sessions');
-const users = require('./users');
-const chatHistory = require('./chatHistory');
+const session = require('./backend/models/sessions');
+const users = require('./backend/models/users');
+const chatHistory = require('./backend/models/chatHistory');
 
 app.use((req, res, next)=>{
     const sid = req.cookies.sessionId;
@@ -19,6 +19,9 @@ app.use((req, res, next)=>{
     if (req.url === '/api/v1/login' || req.url === '/api/v1/logout'){
         next();
     } else {
+        if (sid && username){
+            next();
+        }
         if(!sid){
         res.status(401).json({error: 'Unauthorized, in the middleware'});
         return;
@@ -40,39 +43,35 @@ app.get('/api/v1', (req, res) => {
 
 app.post('/api/v1/login', (req, res) => {
     const username = req.body.username;
-    const sid = session.createSession(username);
-    res.cookie('sessionId', sid);
     if(username){
+        const sid = session.createSession(username);
+        res.cookie('sessionId', sid);
         if (!users.isValidUserName(username)){
             res.status(400).json({error: 'Bad Request'});
-            return;
         } else if (username === 'dog'){
             res.status(403).json({error: 'Forbidden'});
-            return;
         }
         else {
-            users.addUser(username);
+            if  (!users.getOnlineUsers().includes(username)) {
+                users.addUser(username);
+            }
             const usersList = users.getOnlineUsers();
-            console.log('user:',username);
-            console.log('adding user:',users.getOnlineUsers());
             res.status(200).json({username: username, onlineUsers: usersList});
         }
     } else {
         res.status(401).json({error: 'no username'});
     }
-
 });
 
 app.post('/api/v1/new-chat',(req,res)=>{
     const message = req.body.message;
     const username = req.body.username;
 
-    if(!message){
-        res.status(400).json({error: 'no message'});
-        return;
-    } else {
+    if(message || message.trim() !== '' ){
         chatHistory.addMessage(username, message);
         res.status(200).json({username: username, message: message});
+    } else {
+        return res.status(400).json({error: 'no message'});
     }
 })
 
@@ -81,8 +80,6 @@ app.post('/api/v1/logout',(req,res) => {
     const sid = req.cookies.sessionId;
     if(user){
         users.removeUser(user);
-        console.log('user to be removed:',user);
-        console.log('removing user:',users.getOnlineUsers());
         session.deleteSession(sid);
         res.status(200).json({message: 'Logged out'});
     } else {
@@ -93,14 +90,44 @@ app.post('/api/v1/logout',(req,res) => {
 
 app.get('/api/v1/chat',(req,res)=>{
     const chatList = chatHistory.getChatList();
-    console.log('chatlist:',chatList);
     res.status(200).json( chatList );
+})
+
+app.get('/api/v1/sid', (req,res) => {
+    const sid = req.cookies.sessionId;
+    res.status(200).json({sessionId: sid});
 })
 
 app.get('/api/v1/online-users', (req,res) => {
     const onlineUsers = users.getOnlineUsers();
-    console.log('online users:',onlineUsers);
     res.status(200).json({ onlineUsers })
+})
+
+app.post('/api/v1/change-name', (req, res) =>{
+    const sid = req.cookies.sessionId;
+    const oldName = session.getUsername(sid);
+    const newName = req.body.newName;
+    if(oldName && newName){
+        if ( newName === oldName){
+            return res.status(400).json({ error: 'Bad Request' });
+        }
+        if (!users.isValidUserName(newName)){
+            return res.status(400).json({error: 'Bad Request'});
+        }  
+        if (newName === 'dog'){
+            return res.status(403).json({error: 'Forbidden'});
+        }   
+        else {
+            users.changeUserName(oldName , newName);
+            chatHistory.nameChanged(oldName, newName);
+            const updatedUsersList = users.getOnlineUsers();
+            const updatedChatHistory = chatHistory.getChatList();
+            return res.status(200).json({ newName: newName, usersList: updatedUsersList, chatHistory: updatedChatHistory });                
+        }     
+    }    
+    else {
+        return res.status(400).json({error: 'Bad Request'});
+    }
 })
 
 app.listen(PORT, () => console.log(`http://localhost:${PORT}`));

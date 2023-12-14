@@ -1,6 +1,6 @@
 //Login.jsx
 import { useState } from "react";
-import { errors } from "../public/errors.js"
+import { errors } from '../backend/models/errors.js'
 
 function Login({onLogin}){
     const [username, setUsername] = useState("");
@@ -14,9 +14,10 @@ function Login({onLogin}){
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(newUser)
         })
+        .catch(() => Promise.reject({ error: "networkError" }))
             .then((response) => {
                 if (!response.ok) {
-                    setErrorMessage(errors[response.error] || "Unknown error")
+                    return response.json().then((errorData) => Promise.reject({ error: errorData.error }));
                 }
                 return response.json();
             })
@@ -29,21 +30,20 @@ function Login({onLogin}){
                 })
                     .then((response)=>{
                         if(!response.ok){
-                            setErrorMessage(errors[response.error] || "Unknown error")
+                            setErrorMessage(errors(error.error) || "Unknown error")
                         }
                         return response.json();
                     })
                     .then((data)=>{
                         const chatList = data;
                         onLogin(user, onlineUsers, chatList)
-                        console.log("checking chatList in handleLoginSubmit of Login.jsx:",chatList);
                     })
                     .catch((error)=>{
-                        setErrorMessage(errors[error.error] || "Unknown error")
+                        setErrorMessage(errors(error.error) || "Unknown error")
                     });
             })
             .catch((error)=>{
-                setErrorMessage(errors[error.error] || "Unknown error")
+                setErrorMessage(errors(error.error) || "Unknown error")
             })
     };
 

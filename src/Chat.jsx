@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { errors } from "../public/errors.js"
+import { errors } from '../backend/models/errors.js'
 
-function Chat({username, onLogout, onlineUsers, onlineChat}){
+function Chat({username, onLogout, onlineUsers, onlineChat, onProfile}){
     const [onlineUsersList, setOnlineUsersList] = useState([]);// online users
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
-    
+
 useEffect(() => { 
     setMessages(onlineChat);
     setOnlineUsersList(onlineUsers);
@@ -17,7 +17,8 @@ useEffect(() => {
         })
             .then((response)=>{
                 if(!response.ok){
-                    setErrorMessage(errors[response.error] || "Unknown error")
+                    const errorData = response.json();
+                    setErrorMessage(errors(errorData.error) || "Unknown error")
                 }
                 return response.json();
             })
@@ -25,14 +26,15 @@ useEffect(() => {
                 setOnlineUsersList(data.onlineUsers);
             })
             .catch((error)=>{
-                setErrorMessage(errors[error.error] || "Unknown error")
+                setErrorMessage(errors(error.error) || "Unknown error")
             });
         fetch('/api/v1/chat', {
             method: 'GET',
         })
             .then((response)=>{
                 if(!response.ok){
-                    setErrorMessage(errors[response.error] || "Unknown error")
+                    const errorData = response.json();
+                    setErrorMessage(errors(errorData.error) || "Unknown error")
                 }
                 return response.json();
             })
@@ -41,10 +43,9 @@ useEffect(() => {
                 setMessage(""); // Clear the input field after sending the message
             })
             .catch((error)=>{
-                setErrorMessage(errors[error.error] || "Unknown error")
+                setErrorMessage(errors(error.error) || "Unknown error")
             });
-    }, 10000)
-    // return () => clearInterval(interval);
+    }, 5000)
 } , [onlineUsers, onlineChat])
 
     function handleChatSubmit(){
@@ -56,7 +57,8 @@ useEffect(() => {
         })
             .then((response)=>{
                 if(!response.ok){
-                    setErrorMessage(errors[response.error] || "Unknown error")
+                    const errorData = response.json();
+                    setErrorMessage(errors(errorData.error) || "Unknown error1")
                 }
                 return response.json();
             })
@@ -65,16 +67,17 @@ useEffect(() => {
                 setMessage(""); // Clear the input field after sending the message
             })
             .catch((error)=>{
-                setErrorMessage(errors[error.error] || "Unknown error")
+                setErrorMessage(errors(errorData.error) || "Unknown error2")
             });
     }
 
     return (
-        // magsList and onlineusers Panel
+
         <div className="chat">
             <header>
-                <h1>Chat</h1>
-                <h2>hello, { username }</h2>
+                <h1>Personal Profile</h1>
+                <h2>Name: { username }</h2>
+                <p></p>
                 <button onClick={onLogout}>Logout</button>
             </header>
 
@@ -108,6 +111,9 @@ useEffect(() => {
                 onInput={(e) => setMessage(e.target.value)}
             />
             <button onClick={handleChatSubmit}>Send</button>
+            <br/>
+            <button onClick={onProfile}>My Profile!</button>
+            {errorMessage && <p className='error'>{errorMessage}</p>}
         </div>
     );
 }
